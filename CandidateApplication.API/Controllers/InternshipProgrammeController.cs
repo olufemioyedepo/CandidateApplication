@@ -43,7 +43,15 @@ namespace CandidateApplication.API.Controllers
         [HttpPut]
         public async Task<IActionResult> Put(InternshipProgrammeSetupQuestionForEdit internshipProgrammeSetupQuestionForEdit)
         {
-            var response = await _progammeRepository.ÜpdateApplicationQuestions(internshipProgrammeSetupQuestionForEdit);
+            var response = await _progammeRepository.UpdateApplicationQuestions(internshipProgrammeSetupQuestionForEdit);
+            return StatusCode(response.Code, response);
+        }
+
+        [HttpGet]
+        [Route("question-types")]
+        public IActionResult GetQuestionTypes()
+        {
+            var response = _progammeRepository.GetQuestionTypes();
             return StatusCode(response.Code, response);
         }
     }

@@ -12,8 +12,8 @@ namespace CandidateApplication.Service.Interfaces
     {
         Task<GenericResponse<InternshipProgrammeSetup>> CreateInternshipProgramme(InternshipProgrammeSetup internshipProgrammeSetup);
         Task<GenericResponse<List<InternshipProgrammeSetup>>> GetInternshipProgrammes();
-        //Task<GenericResponse<bool>> CreateInternshipProgrammeTest();
-        Task<GenericResponse<InternshipProgrammeSetup>> ÜpdateApplicationQuestions(InternshipProgrammeSetupQuestionForEdit internshipProgrammeSetupQuestionForEdit);
+        Task<GenericResponse<InternshipProgrammeSetup>> UpdateApplicationQuestions(InternshipProgrammeSetupQuestionForEdit internshipProgrammeSetupQuestionForEdit);
 
+        GenericResponse<List<string>> GetQuestionTypes();
     }
 }

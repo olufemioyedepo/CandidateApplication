@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Configuration;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -47,11 +48,18 @@ namespace CandidateApplication.Service.Repository
         {
             try
             {
+                var validQuestionTypes = GetQuestionTypes()?.Data;
                 internshipProgrammeSetup.Id = Guid.NewGuid().ToString();
                 internshipProgrammeSetup.DataCategory = "InternshipProgramme";
 
                 foreach (var question in internshipProgrammeSetup.Questions)
                 {
+                    // validate if question type is valid
+                    if (validQuestionTypes?.Contains(question.QuestionType) == false)
+                    {
+                        return new GenericResponse<InternshipProgrammeSetup>() { Code = 400, Message = $"{question.QuestionType} is an invalid question type!" };
+                    }
+
                     switch (question.QuestionType)
                     {
                         case "MultipleChoice":
@@ -140,7 +148,7 @@ namespace CandidateApplication.Service.Repository
             }
         }
 
-        public async Task<GenericResponse<InternshipProgrammeSetup>> ÜpdateApplicationQuestions(InternshipProgrammeSetupQuestionForEdit internshipProgrammeSetupQuestionForEdit)
+        public async Task<GenericResponse<InternshipProgrammeSetup>> UpdateApplicationQuestions(InternshipProgrammeSetupQuestionForEdit internshipProgrammeSetupQuestionForEdit)
         {
             try
             {
@@ -165,6 +173,29 @@ namespace CandidateApplication.Service.Repository
             catch (Exception ex)
             {
                 return new GenericResponse<InternshipProgrammeSetup>() { Code = 500, Message = $"Server error: {ex.Message}" };
+            }
+        }
+
+        public GenericResponse<List<string>> GetQuestionTypes()
+        {
+            try
+            {
+                var dropdownTypes = _configuration.GetSection("ValidQuestionTypes")
+                                   .GetChildren()
+                                   .Select(x => x.Value)
+                                   .ToList();
+
+                return new GenericResponse<List<string>>() { 
+                    Code = 200, 
+                    Data = dropdownTypes, 
+                    Message =  dropdownTypes?.Count == 0 ? "No question type found" : $"{dropdownTypes.Count} question types found!",
+                    Success = true
+                };
+            }
+            catch (Exception)
+            {
+
+                throw;
             }
         }
     }
