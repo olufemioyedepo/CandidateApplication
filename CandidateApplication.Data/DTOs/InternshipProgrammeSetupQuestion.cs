@@ -16,5 +16,7 @@ namespace CandidateApplication.Data.DTOs
         public List<string> Choices { get; set; }
         public bool EnableOtherOption { get; set; }
         public int? MaxChoicesAllowed { get; set; }
+        public string QuestionId { get; set; }
+
     }
 }

@@ -54,5 +54,21 @@ namespace CandidateApplication.API.Controllers
             var response = _progammeRepository.GetQuestionTypes();
             return StatusCode(response.Code, response);
         }
+        
+        [HttpGet]
+        [Route("programme-detail")]
+        public async Task<IActionResult> GetInternshipProgrammeDetails(string programmeId)
+        {
+            var response = await _progammeRepository.GetInternshipProgrammeDetails(programmeId);
+            return StatusCode(response.Code, response);
+        }
+
+        [HttpPost]
+        [Route("submit-applicant-data")]
+        public async Task<IActionResult> SubmitApplicationData(ApplicantFormData applicantFormData)
+        {
+            var response = await _progammeRepository.SubmitApplicationData(applicantFormData);
+            return StatusCode(response.Code, response);
+        }
     }
 }

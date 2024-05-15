@@ -28,6 +28,7 @@ namespace CandidateApplication.Service.Repository
         private Microsoft.Azure.Cosmos.Container containerClient;
         private readonly IConfiguration _configuration;
         private readonly string _internshipProgrammeSetupPartitionKey;
+        private readonly string _applicationDataPartitionKey;
 
        
         public InternshipProgammeRepository(IConfiguration configuration)
@@ -39,6 +40,7 @@ namespace CandidateApplication.Service.Repository
             _cosmosDbName = _configuration.GetSection("CosmosDb").GetSection("DatabaseName").Value;
             _cosmosDbContainerName = _configuration.GetSection("CosmosDb").GetSection("ContainerName").Value;
             _internshipProgrammeSetupPartitionKey = _configuration.GetSection("CosmosDb").GetSection("InternshipProgrammeSetupPartitionKey").Value;
+            _applicationDataPartitionKey = _configuration.GetSection("CosmosDb").GetSection("ApplicationPartitionKey").Value;
 
             CosmosClient cosmosDbClient = new CosmosClient(_cosmosDbAccountUri, _cosmosDBAccountPrimaryKey, new CosmosClientOptions { LimitToEndpoint = true, ConnectionMode = ConnectionMode.Gateway });
             containerClient = cosmosDbClient.GetContainer(_cosmosDbName, _cosmosDbContainerName);
@@ -54,6 +56,7 @@ namespace CandidateApplication.Service.Repository
 
                 foreach (var question in internshipProgrammeSetup.Questions)
                 {
+                    question.QuestionId = Guid.NewGuid().ToString();
                     // validate if question type is valid
                     if (validQuestionTypes?.Contains(question.QuestionType) == false)
                     {
@@ -83,7 +86,7 @@ namespace CandidateApplication.Service.Repository
                     }
                 }
                 
-
+                
                 var response = await containerClient.CreateItemAsync(internshipProgrammeSetup, new PartitionKey(internshipProgrammeSetup.DataCategory));
                 if (response.StatusCode == HttpStatusCode.Created)
                 {
@@ -96,29 +99,6 @@ namespace CandidateApplication.Service.Repository
             {
                 // implement error logging mechanism
                 return new GenericResponse<InternshipProgrammeSetup>() { Code=500, Message = $"Server error: {ex.Message}" };
-            }
-        }
-
-        public async Task<GenericResponse<bool>> CreateInternshipProgrammeTest()
-        {
-            try
-            {
-                var test = new TestDto
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Name = "Olufemi",
-                    Age = 33,
-                    DataCategory = "Test"
-                };
-
-                var response = await containerClient.CreateItemAsync(test, new PartitionKey(test.DataCategory));
-
-                return new GenericResponse<bool>() { Code = 201, Success = true };
-            }
-            catch (Exception ex)
-            {
-
-                throw;
             }
         }
 
@@ -167,7 +147,7 @@ namespace CandidateApplication.Service.Repository
             }
             
             catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound) {
-                return new GenericResponse<InternshipProgrammeSetup>() { Code = 404, Message = "Invalid question Id!" };
+                return new GenericResponse<InternshipProgrammeSetup>() { Code = 404, Message = "Invalid application program Id!" };
             }
 
             catch (Exception ex)
@@ -196,6 +176,68 @@ namespace CandidateApplication.Service.Repository
             {
 
                 throw;
+            }
+        }
+
+        public async Task<GenericResponse<InternshipProgrammeSetup>> GetInternshipProgrammeDetails(string id)
+        {
+            try
+            {
+                ItemResponse<InternshipProgrammeSetup> response = await containerClient.ReadItemAsync<InternshipProgrammeSetup>(id, new PartitionKey(_internshipProgrammeSetupPartitionKey));
+                var existingItem = response.Resource;
+
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    return new GenericResponse<InternshipProgrammeSetup>() { Code = 200, Message = "Application detail retrieved successfully!", Success = true, Data = response.Resource };
+                }
+
+                return new GenericResponse<InternshipProgrammeSetup>() { Code = 400, Message = "Could not retrieve application details, an error must have occured" };
+            }
+            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                return new GenericResponse<InternshipProgrammeSetup>() { Code = 404, Message = "Invalid application program Id!" };
+            }
+
+            catch (Exception ex)
+            {
+                return new GenericResponse<InternshipProgrammeSetup>() { Code = 500, Message = $"Server error: {ex.Message}" };
+            }
+        }
+
+        public async Task<GenericResponse<ApplicantFormData>> SubmitApplicationData(ApplicantFormData applicantFormDataQuestion)
+        {
+            try
+            {
+                ItemResponse<InternshipProgrammeSetup> applicationProgrammeCheckResponse = await containerClient.ReadItemAsync<InternshipProgrammeSetup>(applicantFormDataQuestion.ApplicationProgrammeId, new PartitionKey(_internshipProgrammeSetupPartitionKey));
+                var internshipProgramme = applicationProgrammeCheckResponse.Resource;
+
+                // validate that questions submitted from frontend are valid
+                var allowedQuestionIds = internshipProgramme.Questions.Select(s=>s.QuestionId).ToList();
+
+                foreach (var submittedQuestion in applicantFormDataQuestion.AnswersToQuestions)
+                {
+                    if (!allowedQuestionIds.Contains(submittedQuestion.QuestionId))
+                    {
+                        return new GenericResponse<ApplicantFormData>() { Code = 400, Message = $"Question ID: {submittedQuestion.QuestionId} does not exist under this question!" };
+                    }
+
+                }
+
+                applicantFormDataQuestion.Id = Guid.NewGuid().ToString();
+                applicantFormDataQuestion.DataCategory = _applicationDataPartitionKey;
+                var response = await containerClient.CreateItemAsync(applicantFormDataQuestion, new PartitionKey(applicantFormDataQuestion.DataCategory));
+
+                if (response.StatusCode == HttpStatusCode.Created)
+                {
+                    return new GenericResponse<ApplicantFormData>() { Code = 201, Success = true, Data = applicantFormDataQuestion };
+                }
+
+                return new GenericResponse<ApplicantFormData>() { Code = 400, Message = "Could not submit application data, an error must have occured!" };
+
+            }
+            catch (Exception ex)
+            {
+                return new GenericResponse<ApplicantFormData>() { Code = 500, Message = $"Server error: {ex.Message}" };
             }
         }
     }
